@@ -1,50 +1,107 @@
 # logsforhumans
 
-Logsforhumans pretends logs all models changes to human beings (with descritive text).
+<p align="center">
+    <img src="logo/logo.png?raw=true" alt="Logsforhumans logo"/>
+</p>
 
-Logsforhumans is not for model recovering!
+## What is logsforhumans
 
-### Logging a model
+Logsforhumans logs all models changes for human beings (with descritive text of change).
+
+## Usage
 ```python
-from logsforhumans.models import LogForHumanModel
+from logsforhumans.models import generate_humanlogs
 
-class MyAwesomeModel(LogForHumanModel):
-    ...
+@generate_humanlogs
+class Person(models.Model):
+    name = models.CharField(max_length=255)
+
+    def __str__(self):
+        return self.name
 ```
 
-And that's it! All changes to fields in that model will be logged.
+Just that! After that, all changes in your model can be get with:
 
-### Retrieving the changes in a model
 ```python
-from logsforhumans.models import HumanLog
-
-
-@login_required
-def logs_view(request, app, model, pk):
-    humanlogs = HumanLog.objects.filter(
-        model_name=model,
-        app_label=app,
-        object_id=pk)
-    logs = list()
-    title = u'Logs'
-    for i in humanlogs:
-        logs.append({
-            'updated_by': i.updated_by,
-            'creation_date': i.creation_date,
-            'changes': [j for j in i.description.split('\n') if j]
-        })
-    return render_(request, 'logs.html', locals())
+Person.objects.get().get_logs()
 ```
+
+The return of `get_logs` function is a queryset of logsforhumans.HumanLog model:
+
+```python
+>>> john = Person.objects.create(name='John')
+>>> john.get_logs()
+<QuerySet [<HumanLog: The person "John" was created>]>
+>>> john.name = 'John Wayne'
+>>> john.save()
+>>> john.get_logs()
+<QuerySet [<HumanLog: The field Name was changed from "John" to "John Wayne"
+>, <HumanLog: The person "John" was created>]>
+```
+
+The `HumanLog` model has the following fields:
+- description (text field)
+- creation_date (datetime field)
+- updated_by (fk to User model that made the change)
+
+## Instalation
+1. Download the repository: `git clone https://github.com/rui-cadete-tecnologia/logsforhumans.git` inside your project
+2. Put `logsforhumans` inside your `settings.INSTALLED_APPS`
+3. Put `'logsforhumans.middleware.LogsForHumansMiddleware'` in the end of your
+    `settings.MIDDLEWARE`
+
+
+## What is not logsforhumans
+Logsforhumans is not for model recovering! If you want to recover a version of your model, like an revision control, you can try https://github.com/treyhunner/django-simple-history
 
 ### Manually saving changes
+Each model that is decorated with `generate_humanlogs` has a method called `add_log` where you can pass any text you want.
 
-Each model that inherits from `logsforhumans.models.LogForHumanModel` has a method called `add_log` where you can pass any text you want.
 
+### Temporarily disabling logs
+If you are going to make many changes in a model, with many saves you can skip the creation
+of logs setting `skip_changelog=True` in your instance:
+```python
+john = Person.objects.get(name='John')
+john.skip_changelog = True
+john.name = 'John Merric'
+john.save()  # this change is not saved
+```
+
+### Per-model field settings
+If you have fields that you need log some change but dont want that information in log's description itself
+(some examples are password fields, or file path of some importants file) you can use `LOGSFORHUMANS_IGNORE_DETAILS`
+option, something like:
+
+```python
+from logsforhumans.models import generate_humanlogs
+
+@generate_humanlogs
+class User(models.Model):
+    LOGSFORHUMANS_IGNORE_DETAILS = ('password', )
+
+    password = PasswordModelField(...)
+```
+
+This will create a generic log without specify the exact value of field. You can customize the generic message that will be created with the settings `LOGSFORHUMANS_GENERIC_CHANGE_MESSAGE`
+
+If you want completely ignore a field you can use `LOGSFORHUMANS_IGNORE_CHANGES` option:
+
+```python
+from logsforhumans.models import generate_humanlogs
+
+@generate_humanlogs
+class MyModel(models.Model):
+    LOGSFORHUMANS_IGNORE_CHANGES = ('password', )
+    password = PasswordModelField(...)
+```
+
+So, none log will be created when changing the password field.
 
 ### Customizing the change log to your language
-For each operation (delete, normal field change, m2m field change, create field ...) logsforhumans has a settings to custom the format.
+For each operation (delete, normal field change, m2m field change, create field ...) logsforhumans has a settings field to customize the format.
 
-Actually the variables are:
+The variables are:
 
 - DEFAULT_DELETE_MESSAGE
 - DEFAULT_CREATION_MESSAGE
@@ -52,28 +109,39 @@ Actually the variables are:
 - DEFAULT_M2M_FIELDS_MESSAGE
 - DEFAULT_GENERIC_CHANGE
 
-
-### Per-model field settings
-If you have fields that you need log some change but dont want that information in log itself
-(some examples are password fields, or file path of some importants file) you can use `LOGSFORHUMANS_IGNORE_DETAILS`
-option, something like:
-
-```python
-class MyModel(LogForHumanModel):
-    LOGSFORHUMANS_IGNORE_DETAILS = ('password', )
-    password = PasswordModelField(...)
+Each variable that can be overrided in your settings file. For example, the
+actual default value for `DEFAULT_DELETE_MESSAGE` variable is:
+```
+The {model_name} "{instance_str}" (id={instance_id}) was deleted
 ```
 
-This will create a generic log without specify the exact value of field. You can customize
-the generic message that will be created with the settings `LOGSFORHUMANS_GENERIC_CHANGE_MESSAGE`
-
-If you want completely ignore a field you can use `LOGSFORHUMANS_IGNORE_CHANGES` option:
+If you dont want the ID of object in the log you can do:
 
 ```python
-class MyModel(LogForHumanModel):
-    LOGSFORHUMANS_IGNORE_DETAILS = ('password', )
-    password = PasswordModelField(...)
+# settings.py
+DEFAULT_DELETE_MESSAGE = 'The {model_name} "{instance_str}" was deleted'
 ```
 
-So, none log will be created
+When you delete your model the logs of it is not deleted.
 
+Below are the string variable available for each model field operation:
+- DEFAULT_DELETE_MESSAGE:
+    - model_name: the name of model
+    - instance_str: the string representation of model instance
+    - instance_id: the instance id
+- DEFAULT_CREATION_MESSAGE
+    - model_name: the name of model
+    - instance_str: the string representation of model instance
+    - instance_id: the instance id
+- DEFAULT_FIELD_CHANGE_MESSAGE
+    - field_verbose_name: the verbose name of changed field
+    - old_value: string representation of old field value
+    - new_value: string representation of new field value
+- DEFAULT_M2M_FIELDS_MESSAGE
+    - item_model_name: the model's name of m2m item
+    - item: the string representation of item
+    - action: today can be: 'removido' and 'adicionado' (the portuguese version of 'removed' and 'added')
+        this must be changed to a more flexible way. Feel free to pull request!
+    - m2m_table: the intermediary m2m table
+- DEFAULT_GENERIC_CHANGE
+    - field_verbose_name: the verbose name of changed field

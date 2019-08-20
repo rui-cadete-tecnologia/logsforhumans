@@ -201,9 +201,11 @@ def generate_m2m_change_logs(**kwargs):
     action = u''
     if kwargs.get('action') == 'post_remove':
         create_logs = True
+        # fixme: create a variable for that
         action = 'removido'
     elif kwargs.get('action') == 'post_add':
         create_logs = True
+        # fixme: create a variable for that
         action = 'adicionado'
     if not create_logs:
         return
@@ -220,7 +222,6 @@ def generate_m2m_change_logs(**kwargs):
 
 
 def generate_humanlogs(class_obj):
-
     class_obj.can_have_changelog = can_have_changelog
     class_obj.get_logs = get_logs
     class_obj.get_models_changelogs = get_models_changelogs
