@@ -1,7 +1,5 @@
-# logsforhumans
-
 <p align="center">
-    <img src="logo/logo.png?raw=true" alt="Logsforhumans logo"/>
+    <img width="200" src="logo/logo.png?raw=true" alt="Logsforhumans logo"/>
 </p>
 
 ## What is logsforhumans
