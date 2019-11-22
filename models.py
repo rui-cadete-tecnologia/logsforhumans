@@ -197,15 +197,14 @@ def generate_m2m_change_logs(**kwargs):
     if not hasattr(kwargs['instance'], 'add_log'):
         return
 
+    sender = kwargs['sender']
     create_logs = False
     action = u''
     if kwargs.get('action') == 'post_remove':
         create_logs = True
-        # fixme: create a variable for that
         action = 'removido'
     elif kwargs.get('action') == 'post_add':
         create_logs = True
-        # fixme: create a variable for that
         action = 'adicionado'
     if not create_logs:
         return
@@ -215,6 +214,14 @@ def generate_m2m_change_logs(**kwargs):
         item_model_name = kwargs.get('model')._meta.verbose_name
         m2m_table = kwargs.get('sender')._meta.db_table
 
+        # getting the m2m field name/verbose_name
+        class_obj = kwargs['instance'].__class__
+        m2m_field_verbose_name = ''
+        for field in dir(class_obj):
+            if isinstance(getattr(class_obj, field), ManyToManyDescriptor):
+                if getattr(class_obj, field).through == sender:
+                    m2m_field_verbose_name = getattr(class_obj, field).field.verbose_name
+
         log += get_m2m_fields_change_format_message().format(**locals())
         log += '\n'
     if log:
@@ -222,6 +229,7 @@ def generate_m2m_change_logs(**kwargs):
 
 
 def generate_humanlogs(class_obj):
+
     class_obj.can_have_changelog = can_have_changelog
     class_obj.get_logs = get_logs
     class_obj.get_models_changelogs = get_models_changelogs
