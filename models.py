@@ -244,12 +244,14 @@ def generate_humanlogs(class_obj):
         instance = kwargs['instance']
         instance.add_delete_log(kwargs)
     class_obj.class_instance_post_delete = class_instance_post_delete
-
     for field in dir(class_obj):
         if isinstance(getattr(class_obj, field), ManyToManyDescriptor):
             through = getattr(class_obj, field).through
 
-            @receiver(m2m_changed, sender=through, weak=False)
+            # the "dispatch_uid" argument is to avoid bind function twice
+            # in m2m fields the two classes involved may have the same field
+            # in the list "dir(obj)"
+            @receiver(m2m_changed, sender=through, weak=False, dispatch_uid=unicode(through))
             def class_instance_m2m_changed(**kwargs):
                 class_obj.generate_m2m_change_logs(**kwargs)
 
