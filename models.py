@@ -2,7 +2,6 @@
 # coding: utf-8
 import threading
 
-from django.utils.six import python_2_unicode_compatible
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.db import models
@@ -54,7 +53,6 @@ def get_generic_change_format_message():
         DEFAULT_GENERIC_CHANGE)
 
 
-@python_2_unicode_compatible
 class HumanLog(models.Model):
     description = models.TextField(blank=False)
 
