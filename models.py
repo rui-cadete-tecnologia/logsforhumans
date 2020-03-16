@@ -183,14 +183,12 @@ def get_save_method(original_save):
     return save
 
 
-@classmethod
-def get_current_user(cls):
+def get_current_user(*args):
     """Return the current user configured in middleware."""
     if hasattr(LOGSFORHUMAN_THREAD, 'request'):
         return getattr(LOGSFORHUMAN_THREAD.request, 'user', None)
 
 
-@staticmethod
 def generate_m2m_change_logs(**kwargs):
     if not hasattr(kwargs['instance'], 'add_log'):
         return
